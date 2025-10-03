@@ -266,7 +266,7 @@ def render_sidebar():
         buffer.seek(0)
         st.sidebar.download_button(
             label="Download Current Model (.pth)",
-            data=buffer,  # Pass the buffer directly
+            data=buffer.getvalue(),  
             file_name=f'model_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pth',
             mime="application/octet-stream"
         )
@@ -321,7 +321,7 @@ def render_classification_tab():
                             st.session_state.model.eval()
                             prediction = st.session_state.model(X_g, X_l).item()
                     
-                    confidence, description = get_planet_context(prediction, target_id)
+                    confidence, description = get_planet_context(prediction)
                     
                     st.success("Classification Complete!")
                     c1, c2, c3 = st.columns(3)
@@ -392,7 +392,7 @@ def render_training_tab():
         X_g, X_l, y = load_and_preprocess_data(train_global, train_local)
         if X_g is not None and y is not None:
             st.write(f"Loaded {len(X_g)} samples. Class distribution: {np.bincount(y)}")
-
+            st.session_state.trained_data = {'X_g': X_g, 'y': y}
             with st.form("training_form"):
                 st.subheader("Training Configuration")
 
@@ -421,6 +421,25 @@ def render_training_tab():
                     else:
                         # Pass the new option to the training loop
                         run_training_loop(X_g, X_l, y, epochs, batch_size, learning_rate, test_split, optimizer_choice, training_mode)
+    if "downloadable_model_path" in st.session_state and st.session_state.downloadable_model_path:
+        
+        st.success("Your trained model is ready for download!")
+        
+        model_path = st.session_state.downloadable_model_path
+        
+        with open(model_path, "rb") as f:
+            st.download_button(
+                label="📁 Download Trained Model (.pth)",
+                data=f,
+                file_name=os.path.basename(model_path), # Use the filename from the path
+                mime="application/octet-stream"
+            )
+        
+        # Add a button to clear the download state and clean up the file
+        if st.button("Clear Downloaded File"):
+            os.remove(model_path)
+            del st.session_state.downloadable_model_path
+            st.rerun()   
 def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_choice, training_mode):
     """The main training loop with an interactive chart and a final summary report."""
     if training_mode == "Train a New Model from Scratch":
@@ -544,16 +563,10 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
         # Save the final state of the model (whether new or fine-tuned)
         torch.save(st.session_state.model.state_dict(), model_path)
 
-        with open(model_path, "rb") as f:
-            st.download_button(
-                label="📁 Download Trained Model (.pth)",
-                data=f,
-                file_name=f"trained_model_{datetime.now().strftime('%Y%m%d_%H%M')}.pth",
-                mime="application/octet-stream"
-            )
-        # Clean up the temporary file
-        if os.path.exists(model_path):
-            os.remove(model_path)
+        model_path = f"trained_model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+    torch.save(st.session_state.model.state_dict(), model_path)
+    st.session_state.downloadable_model_path = model_path
+    
 def render_evaluation_tab():
     st.header("Test Set Evaluation")
     st.markdown("""
@@ -711,98 +724,6 @@ def render_data_analysis_tab():
             st.error("Default statistics image not found. Please ensure 'assets/training_stats.png' exists.")
         # -----------------------------------------------------------
 def render_educational_tab():
-    """Renders the educational content tab with interactive visuals."""
-    st.header("How We Discover Exoplanets")
-    
-    # --- SECTION 1: THE TRANSIT METHOD ---
-    st.subheader("The Transit Method: A Cosmic Shadow Play")
-    st.markdown("""
-    The most successful method for finding exoplanets is the **transit method**. Telescopes like Kepler and TESS stare at thousands of stars, measuring their brightness with incredible precision. When a planet's orbit takes it between its star and our telescope, it blocks a small fraction of the starlight. This creates a tiny, periodic dip in the star's **light curve**—a graph of its brightness over time.
-    """)
-    
-    # --- NEW VISUAL 1: INTERACTIVE LIGHT CURVE SIMULATOR ---
-    with st.container(border=True):
-        st.markdown("#### Interactive Simulator")
-        st.write("See how a planet's size changes the light curve. A larger planet blocks more light, creating a deeper dip.")
-
-        # Slider to control the planet size
-        planet_size = st.slider("Planet Size (relative to star)", 0.01, 0.15, 0.10)
-        
-        # Generate data for the light curve plot
-        time = np.linspace(-0.5, 0.5, 500)
-        # Add some random noise to simulate a real star
-        star_brightness = 1.0 + np.random.normal(0, 0.0005, 500)
-        
-        # Create the transit dip based on planet size
-        transit_duration = 0.1
-        transit_mask = (time > -transit_duration/2) & (time < transit_duration/2)
-        transit_depth = planet_size ** 2
-        star_brightness[transit_mask] -= transit_depth
-        
-        # Create the Plotly figure
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=time, y=star_brightness, mode='lines', name='Star Brightness'))
-        fig.update_layout(
-            title="Simulated Light Curve",
-            xaxis_title="Time (Phase)",
-            yaxis_title="Normalized Brightness",
-            yaxis_range=[max(0.97, 1.0 - transit_depth - 0.005), 1.005] # Dynamic y-axis
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # --- SECTION 2: THE CHALLENGE ---
-    st.subheader("The Challenge: Finding a Needle in a Haystack")
-    st.markdown("""
-    This sounds simple, but the dip in brightness from an Earth-sized planet is minuscule (less than 0.01%) and can be buried in noise. A major challenge is distinguishing a real planet transit from an **astrophysical false positive**, like an eclipsing binary star system, which can create a signal that mimics a planet.
-    """)
-    
-    # --- NEW VISUAL 2: TRANSIT SHAPE COMPARISON ---
-    with st.container(border=True):
-        st.markdown("#### Planet Transit vs. False Positive")
-        st.write("Models learn to spot subtle differences in the transit's shape. Planets typically create a 'U-shaped' dip, while eclipsing binary stars often create a sharper 'V-shaped' dip.")
-
-        # Generate data for the comparison plot
-        x_shape = np.linspace(-1, 1, 100)
-        u_shape = -np.sqrt(1 - x_shape**2) # Equation for a semi-circle
-        v_shape = -np.abs(x_shape)        # Equation for a V-shape
-
-        # Create the Plotly figure
-        fig_compare = go.Figure()
-        fig_compare.add_trace(go.Scatter(x=x_shape, y=u_shape, mode='lines', name='U-Shape (Planet)', line=dict(width=4)))
-        fig_compare.add_trace(go.Scatter(x=x_shape, y=v_shape, mode='lines', name='V-Shape (False Positive)', line=dict(width=4)))
-        fig_compare.update_layout(
-            title="Comparing Transit Shapes",
-            xaxis_title="Time",
-            yaxis_title="Change in Brightness",
-            yaxis_range=[-1.1, 0.1]
-        )
-        st.plotly_chart(fig_compare, use_container_width=True)
-    
-    st.markdown("---")
-    
-    # --- SECTION 3: MACHINE LEARNING APPROACHES ---
-    st.header("How Machine Learning Helps")
-    st.markdown("Machine learning models can learn these subtle patterns automatically from thousands of examples.")
-    
-    # ... (The rest of your existing content about the different ML papers can go here) ...
-    # ... (I've kept it the same as your previous version) ...
-    with st.container(border=True):
-        st.subheader("1. Deep Learning with Convolutional Neural Networks (CNNs)")
-        st.markdown("**Paper:** _Identifying Exoplanets with Deep Learning_ by Shallue & Vanderburg (2018)")
-        st.warning("⭐ **This is the approach implemented in this platform.**")
-        st.markdown("This model treats the light curve like an image, using a CNN to automatically find the important features like the transit's shape and duration.")
-
-    with st.container(border=True):
-        st.subheader("2. Classical Machine Learning with Feature Engineering")
-        st.markdown("Other approaches first extract hundreds of statistical features from the light curve and then feed them into models like Gradient Boosted Trees.")
-        
-    st.markdown("---")
-    
-    with st.container(border=True):
-        st.subheader("📚 NASA Datasets & Resources")
-        # ... (Your resource links can go here) ...
-
-def render_educational_tab():
     """Renders the educational content tab with resources."""
     st.header("How We Discover Exoplanets")
     
@@ -853,24 +774,38 @@ def render_educational_tab():
         st.markdown("#### Planet Transit vs. False Positive")
         st.write("Models learn to spot subtle differences in the transit's shape. Planets typically create a 'U-shaped' dip, while eclipsing binary stars often create a sharper 'V-shaped' dip.")
 
-        # Generate data for the comparison plot
+        # Generate data for the comparison plot - INDENT THESE LINES
         x_shape = np.linspace(-1, 1, 100)
-        u_shape = -np.sqrt(1 - x_shape**2) # Equation for a semi-circle
-        v_shape = -np.abs(x_shape)        # Equation for a V-shape
 
-        # Create the Plotly figure
+        # U-shape: parabola that looks more like actual transit
+        u_shape = -(1 - x_shape**2) * 0.8  # Smooth, rounded bottom
+
+        # V-shape: Sharp angular dip typical of eclipsing binaries  
+        v_shape = -np.maximum(0, 1 - np.abs(x_shape) * 1.2)  # Linear slopes meeting at point
+
+        # Normalize both to similar depth
+        u_shape = u_shape / np.min(u_shape) * -1
+        v_shape = v_shape / np.min(v_shape) * -1
+
         fig_compare = go.Figure()
-        fig_compare.add_trace(go.Scatter(x=x_shape, y=u_shape, mode='lines', name='U-Shape (Planet)', line=dict(width=4)))
-        fig_compare.add_trace(go.Scatter(x=x_shape, y=v_shape, mode='lines', name='V-Shape (False Positive)', line=dict(width=4)))
+        fig_compare.add_trace(go.Scatter(
+            x=x_shape, y=u_shape, mode='lines', 
+            name='U-Shape (Planet)', 
+            line=dict(width=4, color='royalblue')
+        ))
+        fig_compare.add_trace(go.Scatter(
+            x=x_shape, y=v_shape, mode='lines', 
+            name='V-Shape (Binary Star)', 
+            line=dict(width=4, color='firebrick')
+        ))
         fig_compare.update_layout(
             title="Comparing Transit Shapes",
-            xaxis_title="Time",
-            yaxis_title="Change in Brightness",
-            yaxis_range=[-1.1, 0.1]
+            xaxis_title="Time (Phase)",
+            yaxis_title="Relative Brightness Change",
+            yaxis_range=[-1.15, 0.1],
+            showlegend=True
         )
         st.plotly_chart(fig_compare, use_container_width=True)
-    
-    st.markdown("---")
     
     # --- SECTION 3: MACHINE LEARNING APPROACHES ---
     st.header("How Machine Learning Helps")
@@ -934,17 +869,6 @@ def render_educational_tab():
         - **Improved Performance**: The study shows that these ensemble algorithms, particularly Stacking, perform very well on exoplanet data. By combining the strengths of different models, they can often achieve higher accuracy and reliability than any single model on its own.
         """)
     
-    st.markdown("---")
-    with st.container(border=True):
-        st.subheader("1. Deep Learning with Convolutional Neural Networks (CNNs)")
-        st.markdown("**Paper:** _Identifying Exoplanets with Deep Learning_ by Shallue & Vanderburg (2018)")
-        st.warning("⭐ **This is the approach implemented in this platform.**")
-        st.markdown("This model treats the light curve like an image, using a CNN to automatically find the important features like the transit's shape and duration.")
-
-    with st.container(border=True):
-        st.subheader("2. Classical Machine Learning with Feature Engineering")
-        st.markdown("Other approaches first extract hundreds of statistical features from the light curve and then feed them into models like Gradient Boosted Trees.")
-        
     st.markdown("---")
     # Resources Section
     with st.container(border=True):
