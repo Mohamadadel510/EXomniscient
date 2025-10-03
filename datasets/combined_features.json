@@ -1,0 +1,1 @@
+{"features": ["orbital_period", "transit_duration", "transit_depth", "planet_radius", "insolation_flux", "equilibrium_temperature", "stellar_teff", "stellar_logg", "stellar_radius", "stellar_mag", "ra", "dec"]}
