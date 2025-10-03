@@ -711,16 +711,170 @@ def render_data_analysis_tab():
             st.error("Default statistics image not found. Please ensure 'assets/training_stats.png' exists.")
         # -----------------------------------------------------------
 def render_educational_tab():
+    """Renders the educational content tab with interactive visuals."""
+    st.header("How We Discover Exoplanets")
+    
+    # --- SECTION 1: THE TRANSIT METHOD ---
+    st.subheader("The Transit Method: A Cosmic Shadow Play")
+    st.markdown("""
+    The most successful method for finding exoplanets is the **transit method**. Telescopes like Kepler and TESS stare at thousands of stars, measuring their brightness with incredible precision. When a planet's orbit takes it between its star and our telescope, it blocks a small fraction of the starlight. This creates a tiny, periodic dip in the star's **light curve**—a graph of its brightness over time.
+    """)
+    
+    # --- NEW VISUAL 1: INTERACTIVE LIGHT CURVE SIMULATOR ---
+    with st.container(border=True):
+        st.markdown("#### Interactive Simulator")
+        st.write("See how a planet's size changes the light curve. A larger planet blocks more light, creating a deeper dip.")
+
+        # Slider to control the planet size
+        planet_size = st.slider("Planet Size (relative to star)", 0.01, 0.15, 0.10)
+        
+        # Generate data for the light curve plot
+        time = np.linspace(-0.5, 0.5, 500)
+        # Add some random noise to simulate a real star
+        star_brightness = 1.0 + np.random.normal(0, 0.0005, 500)
+        
+        # Create the transit dip based on planet size
+        transit_duration = 0.1
+        transit_mask = (time > -transit_duration/2) & (time < transit_duration/2)
+        transit_depth = planet_size ** 2
+        star_brightness[transit_mask] -= transit_depth
+        
+        # Create the Plotly figure
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=time, y=star_brightness, mode='lines', name='Star Brightness'))
+        fig.update_layout(
+            title="Simulated Light Curve",
+            xaxis_title="Time (Phase)",
+            yaxis_title="Normalized Brightness",
+            yaxis_range=[max(0.97, 1.0 - transit_depth - 0.005), 1.005] # Dynamic y-axis
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- SECTION 2: THE CHALLENGE ---
+    st.subheader("The Challenge: Finding a Needle in a Haystack")
+    st.markdown("""
+    This sounds simple, but the dip in brightness from an Earth-sized planet is minuscule (less than 0.01%) and can be buried in noise. A major challenge is distinguishing a real planet transit from an **astrophysical false positive**, like an eclipsing binary star system, which can create a signal that mimics a planet.
+    """)
+    
+    # --- NEW VISUAL 2: TRANSIT SHAPE COMPARISON ---
+    with st.container(border=True):
+        st.markdown("#### Planet Transit vs. False Positive")
+        st.write("Models learn to spot subtle differences in the transit's shape. Planets typically create a 'U-shaped' dip, while eclipsing binary stars often create a sharper 'V-shaped' dip.")
+
+        # Generate data for the comparison plot
+        x_shape = np.linspace(-1, 1, 100)
+        u_shape = -np.sqrt(1 - x_shape**2) # Equation for a semi-circle
+        v_shape = -np.abs(x_shape)        # Equation for a V-shape
+
+        # Create the Plotly figure
+        fig_compare = go.Figure()
+        fig_compare.add_trace(go.Scatter(x=x_shape, y=u_shape, mode='lines', name='U-Shape (Planet)', line=dict(width=4)))
+        fig_compare.add_trace(go.Scatter(x=x_shape, y=v_shape, mode='lines', name='V-Shape (False Positive)', line=dict(width=4)))
+        fig_compare.update_layout(
+            title="Comparing Transit Shapes",
+            xaxis_title="Time",
+            yaxis_title="Change in Brightness",
+            yaxis_range=[-1.1, 0.1]
+        )
+        st.plotly_chart(fig_compare, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # --- SECTION 3: MACHINE LEARNING APPROACHES ---
+    st.header("How Machine Learning Helps")
+    st.markdown("Machine learning models can learn these subtle patterns automatically from thousands of examples.")
+    
+    # ... (The rest of your existing content about the different ML papers can go here) ...
+    # ... (I've kept it the same as your previous version) ...
+    with st.container(border=True):
+        st.subheader("1. Deep Learning with Convolutional Neural Networks (CNNs)")
+        st.markdown("**Paper:** _Identifying Exoplanets with Deep Learning_ by Shallue & Vanderburg (2018)")
+        st.warning("⭐ **This is the approach implemented in this platform.**")
+        st.markdown("This model treats the light curve like an image, using a CNN to automatically find the important features like the transit's shape and duration.")
+
+    with st.container(border=True):
+        st.subheader("2. Classical Machine Learning with Feature Engineering")
+        st.markdown("Other approaches first extract hundreds of statistical features from the light curve and then feed them into models like Gradient Boosted Trees.")
+        
+    st.markdown("---")
+    
+    with st.container(border=True):
+        st.subheader("📚 NASA Datasets & Resources")
+        # ... (Your resource links can go here) ...
+
+def render_educational_tab():
     """Renders the educational content tab with resources."""
     st.header("How We Discover Exoplanets")
     
+    # --- SECTION 1: THE TRANSIT METHOD ---
+    st.subheader("The Transit Method: A Cosmic Shadow Play")
     st.markdown("""
-    ### The Transit Method: A Cosmic Shadow Play
-    The most successful method for finding planets outside our solar system is the **transit method**. Imagine watching a distant, bright light. If a small object passes in front of that light, you'll see a tiny, temporary dip in its brightness.
-    
-    That's exactly what telescopes like Kepler and TESS do. They stare at thousands of stars, measuring their brightness with incredible precision. When a planet's orbit takes it directly between its star and our telescope, it blocks a small fraction of the starlight, creating a "transit." By measuring these periodic dips in a star's **light curve** (a graph of its brightness over time), we can infer the presence of a planet.
+    The most successful method for finding exoplanets is the **transit method**. Telescopes like Kepler and TESS stare at thousands of stars, measuring their brightness with incredible precision. When a planet's orbit takes it between its star and our telescope, it blocks a small fraction of the starlight. This creates a tiny, periodic dip in the star's **light curve**—a graph of its brightness over time.
     """)
+    
+    # --- NEW VISUAL 1: INTERACTIVE LIGHT CURVE SIMULATOR ---
+    with st.container(border=True):
+        st.markdown("#### Interactive Simulator")
+        st.write("See how a planet's size changes the light curve. A larger planet blocks more light, creating a deeper dip.")
 
+        # Slider to control the planet size
+        planet_size = st.slider("Planet Size (relative to star)", 0.01, 0.15, 0.10)
+        
+        # Generate data for the light curve plot
+        time = np.linspace(-0.5, 0.5, 500)
+        # Add some random noise to simulate a real star
+        star_brightness = 1.0 + np.random.normal(0, 0.0005, 500)
+        
+        # Create the transit dip based on planet size
+        transit_duration = 0.1
+        transit_mask = (time > -transit_duration/2) & (time < transit_duration/2)
+        transit_depth = planet_size ** 2
+        star_brightness[transit_mask] -= transit_depth
+        
+        # Create the Plotly figure
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=time, y=star_brightness, mode='lines', name='Star Brightness'))
+        fig.update_layout(
+            title="Simulated Light Curve",
+            xaxis_title="Time (Phase)",
+            yaxis_title="Normalized Brightness",
+            yaxis_range=[max(0.97, 1.0 - transit_depth - 0.005), 1.005] # Dynamic y-axis
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- SECTION 2: THE CHALLENGE ---
+    st.subheader("The Challenge: Finding a Needle in a Haystack")
+    st.markdown("""
+    This sounds simple, but the dip in brightness from an Earth-sized planet is minuscule (less than 0.01%) and can be buried in noise. A major challenge is distinguishing a real planet transit from an **astrophysical false positive**, like an eclipsing binary star system, which can create a signal that mimics a planet.
+    """)
+    
+    # --- NEW VISUAL 2: TRANSIT SHAPE COMPARISON ---
+    with st.container(border=True):
+        st.markdown("#### Planet Transit vs. False Positive")
+        st.write("Models learn to spot subtle differences in the transit's shape. Planets typically create a 'U-shaped' dip, while eclipsing binary stars often create a sharper 'V-shaped' dip.")
+
+        # Generate data for the comparison plot
+        x_shape = np.linspace(-1, 1, 100)
+        u_shape = -np.sqrt(1 - x_shape**2) # Equation for a semi-circle
+        v_shape = -np.abs(x_shape)        # Equation for a V-shape
+
+        # Create the Plotly figure
+        fig_compare = go.Figure()
+        fig_compare.add_trace(go.Scatter(x=x_shape, y=u_shape, mode='lines', name='U-Shape (Planet)', line=dict(width=4)))
+        fig_compare.add_trace(go.Scatter(x=x_shape, y=v_shape, mode='lines', name='V-Shape (False Positive)', line=dict(width=4)))
+        fig_compare.update_layout(
+            title="Comparing Transit Shapes",
+            xaxis_title="Time",
+            yaxis_title="Change in Brightness",
+            yaxis_range=[-1.1, 0.1]
+        )
+        st.plotly_chart(fig_compare, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # --- SECTION 3: MACHINE LEARNING APPROACHES ---
+    st.header("How Machine Learning Helps")
+    st.markdown("Machine learning models can learn these subtle patterns automatically from thousands of examples.")
     st.markdown("""
     ### The Challenge: Finding a Needle in a Haystack
     This sounds simple, but the data is incredibly noisy. The dip in brightness from an Earth-sized planet is minuscule (less than 0.01%). This tiny signal can be buried in noise from:
@@ -781,7 +935,17 @@ def render_educational_tab():
         """)
     
     st.markdown("---")
-    
+    with st.container(border=True):
+        st.subheader("1. Deep Learning with Convolutional Neural Networks (CNNs)")
+        st.markdown("**Paper:** _Identifying Exoplanets with Deep Learning_ by Shallue & Vanderburg (2018)")
+        st.warning("⭐ **This is the approach implemented in this platform.**")
+        st.markdown("This model treats the light curve like an image, using a CNN to automatically find the important features like the transit's shape and duration.")
+
+    with st.container(border=True):
+        st.subheader("2. Classical Machine Learning with Feature Engineering")
+        st.markdown("Other approaches first extract hundreds of statistical features from the light curve and then feed them into models like Gradient Boosted Trees.")
+        
+    st.markdown("---")
     # Resources Section
     with st.container(border=True):
         st.subheader("📚 NASA Datasets & Resources")
