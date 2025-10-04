@@ -8,7 +8,7 @@ A comprehensive deep learning application for discovering and classifying exopla
 
 ### 🎯 Real-Time Exoplanet Classification
 
-![Classification Feature](ui/assets/classification_image.png)
+![Classification Feature](ui/assets/Classification_image.png)
 
 Process raw light curve data directly from Kepler/TESS missions or upload preprocessed data for batch classification. The system automatically downloads, preprocesses, and analyzes transit signals to determine planetary probability with detailed confidence metrics.
 
@@ -22,7 +22,7 @@ Process raw light curve data directly from Kepler/TESS missions or upload prepro
 
 ### 🧠 Model Training & Fine-Tuning
 
-![Training Feature](ui/assets/train_image.png)
+![Training Feature](ui/assets/Train_image.png)
 
 Train new models from scratch or fine-tune existing ones with your own labeled datasets. Real-time training visualization with Plotly charts shows loss curves and validation metrics as they evolve.
 
@@ -51,7 +51,7 @@ Explore training dataset statistics with dynamic visualizations comparing planet
 
 ### 🎓 Model Evaluation with Scientific Rigor
 
-![Evaluation Feature](ui/assets/evaluation_image.png)
+![Evaluation Feature](ui/assets/Evaluation_image.png)
 
 Assess model performance on held-out test sets with comprehensive metrics including accuracy, precision, recall, F1-score, and ROC-AUC. Generate confusion matrices and ROC curves for publication-quality analysis.
 
