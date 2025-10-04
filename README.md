@@ -50,7 +50,7 @@ Explore training dataset statistics with dynamic visualizations comparing planet
 
 ### 🎓 Model Evaluation with Scientific Rigor
 
-![Evaluation Feature](ui/assets/Evaluation_image.png)
+![Evaluation Feature](ui\assets\Evaluation _image.png)
 
 Assess model performance on held-out test sets with comprehensive metrics including accuracy, precision, recall, F1-score, and ROC-AUC. Generate confusion matrices and ROC curves for publication-quality analysis.
 
