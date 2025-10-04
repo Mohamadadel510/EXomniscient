@@ -1,5 +1,4 @@
 # Exoplanet Research Platform (EXOmniscient)🔭
-![WORLD Away](ui/assets/banner_video.mp4)
 A comprehensive deep learning application for discovering and classifying exoplanets using NASA Kepler and TESS telescope data. This platform leverages Convolutional Neural Networks (CNNs) to distinguish real planetary transits from false positives with high accuracy.
 
 ---
