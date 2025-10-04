@@ -19,8 +19,6 @@ import base64
 import io
 import tempfile
 
-# --- Local Imports ---
-# These files must be in the same directory as app.py
 from utilities import ExoplanetCNN
 from cnn_preprocessing import process_single_target
 
@@ -33,7 +31,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- CSS for Custom Tabs ---
 st.markdown("""
 <style>
     /* Center the tab bar */
@@ -630,73 +627,44 @@ def render_evaluation_tab():
                 c4.metric("F1-Score", f"{results['f1_score']:.3f}")
                 st.metric("ROC AUC", f"{results['roc_auc']:.3f}")
 
-                # Visualizations - Fixed: Single figure creation
+                # Visualizations
                 st.subheader("Model Performance Visualizations")
                 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
                 
-                # Confusion Matrix
                 cm = confusion_matrix(results['y_true'], results['y_pred'])
-                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax1, 
-                            xticklabels=['FP', 'Planet'], yticklabels=['FP', 'Planet'])
-                ax1.set_title('Confusion Matrix')
-                ax1.set_xlabel('Predicted')
-                ax1.set_ylabel('Actual')
+                fig_cm, ax = plt.subplots()
+                sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax,
+                            xticklabels=["False Positive", "Planet"],
+                            yticklabels=["False Positive", "Planet"])
+                ax.set_xlabel("Predicted")
+                ax.set_ylabel("True")
+                st.pyplot(fig_cm)
 
                 # ROC Curve
                 fpr, tpr, _ = roc_curve(results['y_true'], results['y_probs'])
-                ax2.plot(fpr, tpr, label=f"ROC curve (AUC ={results['roc_auc']:.2f})")
-                ax2.plot([0, 1], [0, 1], 'k--', label='Random Classifier')
-                ax2.set_title('ROC Curve')
-                ax2.set_xlabel('False Positive Rate')
-                ax2.set_ylabel('True Positive Rate')
-                ax2.legend(loc="lower right")
-                ax2.grid(True, alpha=0.3)
+                fig_roc = go.Figure()
+                fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC Curve'))
+                fig_roc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines',
+                                             line=dict(dash='dash'), name='Random Guess'))
+                fig_roc.update_layout(title=f"ROC Curve (AUC = {results['roc_auc']:.3f})",
+                                      xaxis_title="False Positive Rate",
+                                      yaxis_title="True Positive Rate")
+                st.plotly_chart(fig_roc, use_container_width=True)
 
-                st.pyplot(fig)
-                plt.close(fig)  # Clean up matplotlib figure
-
-                # Generate downloadable report
-                report = f"""Exoplanet Model Evaluation Report
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-===================================
-PERFORMANCE METRICS
-===================================
-Accuracy:  {results['accuracy']:.4f}
-Precision: {results['precision']:.4f}
-Recall:    {results['recall']:.4f}
-F1-Score:  {results['f1_score']:.4f}
-ROC AUC:   {results['roc_auc']:.4f}
-
-===================================
-CONFUSION MATRIX
-===================================
-                Predicted
-              FP    Planet
-Actual FP     {cm[0,0]}     {cm[0,1]}
-       Planet {cm[1,0]}     {cm[1,1]}
-
-===================================
-DATASET INFO
-===================================
-Total Samples: {len(results['y_true'])}
-True Planets: {np.sum(results['y_true'])}
-False Positives: {len(results['y_true']) - np.sum(results['y_true'])}
-
-===================================
-NOTES
-===================================
-This evaluation was performed on a held-out test set.
-Metrics reflect the model's expected performance on new, unseen data.
-"""
-                
+                # Download results
+                eval_report = {
+                    "accuracy": results['accuracy'],
+                    "precision": results['precision'],
+                    "recall": results['recall'],
+                    "f1_score": results['f1_score'],
+                    "roc_auc": results['roc_auc']
+                }
                 st.download_button(
-                    label="📄 Download Evaluation Report",
-                    data=report,
-                    file_name=f"evaluation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain"
+                    label="📄 Download Evaluation Report (JSON)",
+                    data=json.dumps(eval_report, indent=2),
+                    file_name=f"eval_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
                 )
-
 def display_data_analysis(X_g, y, title):
     """Takes data and labels and displays a full statistical analysis."""
     

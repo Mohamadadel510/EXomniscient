@@ -106,3 +106,4 @@ def add_noise(x, noise_level=0.01):
     """Add Gaussian noise to input tensor"""
     noise = torch.randn_like(x) * noise_level
     return x + noise
+
