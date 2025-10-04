@@ -78,7 +78,20 @@ Learn about the transit method, understand how machine learning aids exoplanet d
 - Comprehensive explanations of detection methods
 
 ---
-
+**Kepler Mission:**
+        - [NASA Exoplanet Archive - Kepler](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=cumulative)
+        - [Kepler Confirmed Planets](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=planets)
+        
+**K2 Mission:**
+        - [K2 Candidates](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=k2candidates)
+        
+  **TESS Mission:**
+        - [TESS Candidates](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=TOI)
+        - [MAST TESS Data Archive](https://archive.stsci.edu/tess/)
+        
+  **Additional Resources:**
+        - [Lightkurve Documentation](https://docs.lightkurve.org/)
+        - [NASA Exoplanet Exploration](https://exoplanets.nasa.gov/)
 ## Installation
 
 ### Prerequisites
