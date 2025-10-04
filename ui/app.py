@@ -17,6 +17,7 @@ import requests
 from streamlit_lottie import st_lottie
 import base64
 import io
+import tempfile
 
 # --- Local Imports ---
 # These files must be in the same directory as app.py
@@ -31,7 +32,6 @@ st.set_page_config(
     page_icon="🔭",
     layout="wide"
 )
-#--- VIDEO BANNER WITH TEXT OVERLAY HERE ---
 
 # --- CSS for Custom Tabs ---
 st.markdown("""
@@ -77,7 +77,8 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-#-- video container
+
+# -- video container
 st.markdown(
     """
     <style>
@@ -111,7 +112,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 2. Load the video file (using a cached function is best practice)
+# Load the video file (using a cached function is best practice)
 @st.cache_data
 def get_video_bytes(video_path):
     try:
@@ -123,7 +124,7 @@ def get_video_bytes(video_path):
 
 video_bytes = get_video_bytes('assets/banner_video.mp4')
 
-# 3. Create the HTML structure with the video and text
+# Create the HTML structure with the video and text
 if video_bytes:
     st.html(f"""
         <div class="video-container">
@@ -143,12 +144,13 @@ def init_session_state():
     """Initialize session state variables."""
     if 'model' not in st.session_state:
         st.session_state.model = None
+    if 'model_initialized' not in st.session_state:
+        st.session_state.model_initialized = False
     if 'device' not in st.session_state:
         st.session_state.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if 'training_history' not in st.session_state:
         st.session_state.training_history = []
     if 'model_config' not in st.session_state:
-        # Configuration is now static based on the model in utilities.py
         st.session_state.model_config = {}
 
 init_session_state()
@@ -156,6 +158,14 @@ init_session_state()
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
+
+def validate_data_dimensions(X_global, X_local):
+    """Validate that data has correct dimensions for the model."""
+    if X_global.shape[1] != 2001:
+        raise ValueError(f"Global view must have 2001 features, got {X_global.shape[1]}")
+    if X_local.shape[1] != 201:
+        raise ValueError(f"Local view must have 201 features, got {X_local.shape[1]}")
+    return True
 
 def load_and_preprocess_data(global_file, local_file):
     """Load CSV files, display a preview, and prepare data for the model."""
@@ -183,6 +193,13 @@ def load_and_preprocess_data(global_file, local_file):
 
             X_global = global_df.drop(columns=['label']).values
             X_local = local_df.drop(columns=['label']).values
+        
+        # Validate dimensions
+        try:
+            validate_data_dimensions(X_global, X_local)
+        except ValueError as e:
+            st.error(str(e))
+            return None, None, None
             
         return X_global, X_local, y
     except Exception as e:
@@ -254,11 +271,14 @@ def render_sidebar():
             st.session_state.model = ExoplanetCNN().to(st.session_state.device) 
             st.session_state.model.load_state_dict(torch.load(model_file, map_location=st.session_state.device))
             st.session_state.model.eval()
+            st.session_state.model_initialized = True
             st.sidebar.success("Custom model loaded!")
+        except RuntimeError as e:
+            st.sidebar.error(f"Model architecture mismatch: {e}")
         except Exception as e:
             st.sidebar.error(f"Failed to load model: {e}")
 
-    if st.session_state.model:
+    if st.session_state.model and st.session_state.model_initialized:
         st.sidebar.success("Model Status: LOADED")
         st.sidebar.info(f"Using device: {str(st.session_state.device).upper()}")
         buffer = io.BytesIO()
@@ -270,14 +290,13 @@ def render_sidebar():
             file_name=f'model_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pth',
             mime="application/octet-stream"
         )
-    
     else:
-        
         st.sidebar.warning("No model loaded.")
         
     st.sidebar.markdown("---")
     st.sidebar.subheader("About")
     st.sidebar.info("This platform uses a deep learning model to classify exoplanet candidates from telescope data.")
+
 # ============================================================
 # UI TABS
 # ============================================================
@@ -304,7 +323,7 @@ def render_classification_tab():
             mission = st.selectbox("Mission", ["Kepler", "K2", "TESS"])
 
         if st.button("Process & Classify", type="primary", use_container_width=True):
-            if not st.session_state.model:
+            if not st.session_state.model or not st.session_state.model_initialized:
                 st.error("Please load or initialize a model first.")
             else:
                 try:
@@ -359,9 +378,7 @@ def render_training_tab():
     """Render the UI for the training tab."""
     st.header("Train or Fine-Tune the Model")
 
-    # This expander for the preprocessing script is great.
     with st.expander("Process Your Own Raw Data?"):
-        # ... (content for downloading the script remains the same) ...
         st.markdown("""
         To ensure your raw data is compatible with our model, you need to process it into our required **global** and **local** view formats. 
         
@@ -371,16 +388,19 @@ def render_training_tab():
         4.  Upload the two CSV files that the script generates.
         """)
         
-        with open("preprocess_data.py", "r") as f:
-            script_content = f.read()
+        try:
+            with open("preprocess_data.py", "r", encoding="utf-8") as f:
+                script_content = f.read()
 
-        st.download_button(
-            label="📄 Download Preprocessing Script",
-            data=script_content,
-            file_name="preprocess_data.py",
-            mime="text/x-python"
-        )
-        st.code("python preprocess_data.py --target_id \"KIC 11442793\" --period 210.6 --t0 2455839.2 --duration 7.9")
+            st.download_button(
+                label="📄 Download Preprocessing Script",
+                data=script_content,
+                file_name="preprocess_data.py",
+                mime="text/x-python"
+            )
+            st.code("python preprocess_data.py --target_id \"KIC 11442793\" --period 210.6 --t0 2455839.2 --duration 7.9")
+        except FileNotFoundError:
+            st.error("Preprocessing script not found. Please ensure 'preprocess_data.py' exists in the same directory.")
 
     st.info("Upload your preprocessed and labeled CSV data below.")
 
@@ -392,19 +412,17 @@ def render_training_tab():
         X_g, X_l, y = load_and_preprocess_data(train_global, train_local)
         if X_g is not None and y is not None:
             st.write(f"Loaded {len(X_g)} samples. Class distribution: {np.bincount(y)}")
-            st.session_state.trained_data = {'X_g': X_g, 'y': y}
+            st.session_state.trained_data = {'X_g': X_g, 'X_l': X_l, 'y': y}
             with st.form("training_form"):
                 st.subheader("Training Configuration")
 
-                # --- NEW: Add the training mode radio button ---
                 training_mode = st.radio(
                     label="Select Training Mode",
                     options=("Train a New Model from Scratch", "Fine-Tune the Current Model"),
-                    index=1,  # Default to Fine-Tune
+                    index=1,
                     horizontal=True,
                     help="Choose 'Train from Scratch' to initialize a new model. Choose 'Fine-Tune' to continue training the model that is currently loaded."
                 )
-                # ----------------------------------------------
                 
                 c1, c2, c3 = st.columns(3)
                 epochs = c1.number_input("Epochs", 1, 100, 10)
@@ -416,63 +434,79 @@ def render_training_tab():
                 submitted = st.form_submit_button("Start Training", type="primary")
 
                 if submitted:
-                    if not st.session_state.model and training_mode == "Fine-Tune the Current Model":
+                    if not st.session_state.model_initialized and training_mode == "Fine-Tune the Current Model":
                         st.error("Please load a model from the sidebar before you can fine-tune it.")
                     else:
-                        # Pass the new option to the training loop
                         run_training_loop(X_g, X_l, y, epochs, batch_size, learning_rate, test_split, optimizer_choice, training_mode)
+                        
     if "downloadable_model_path" in st.session_state and st.session_state.downloadable_model_path:
-        
         st.success("Your trained model is ready for download!")
         
         model_path = st.session_state.downloadable_model_path
         
-        with open(model_path, "rb") as f:
-            st.download_button(
-                label="📁 Download Trained Model (.pth)",
-                data=f,
-                file_name=os.path.basename(model_path), # Use the filename from the path
-                mime="application/octet-stream"
-            )
+        try:
+            with open(model_path, "rb") as f:
+                st.download_button(
+                    label="📁 Download Trained Model (.pth)",
+                    data=f,
+                    file_name=os.path.basename(model_path),
+                    mime="application/octet-stream"
+                )
+        except FileNotFoundError:
+            st.error("Model file not found. It may have been deleted.")
         
-        # Add a button to clear the download state and clean up the file
         if st.button("Clear Downloaded File"):
-            os.remove(model_path)
-            del st.session_state.downloadable_model_path
-            st.rerun()   
+            try:
+                if os.path.exists(model_path):
+                    os.remove(model_path)
+                del st.session_state.downloadable_model_path
+                st.rerun()
+            except PermissionError:
+                st.error("Cannot delete file - it may be in use.")
+            except Exception as e:
+                st.error(f"Error removing file: {e}")
+
 def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_choice, training_mode):
     """The main training loop with an interactive chart and a final summary report."""
     if training_mode == "Train a New Model from Scratch":
         st.info("Initializing a new model with random weights for training...")
-        # This line creates a brand new model, discarding any old one
         st.session_state.model = ExoplanetCNN().to(st.session_state.device)
-    else: # This is the "Fine-Tune" mode
+        st.session_state.model_initialized = True
+    else:
         st.info("Starting fine-tuning on the currently loaded model...")
-    # --------------------------------------------------------
+    
     st.info("Starting training process...")
-    # --- Data Setup  ---
+    
+    # Data Setup
     indices = np.arange(len(y))
     train_idx, val_idx = train_test_split(indices, test_size=val_split, stratify=y, random_state=42)
     
-    train_dataset = TensorDataset(torch.tensor(X_g[train_idx], dtype=torch.float32).unsqueeze(1),
-                                  torch.tensor(X_l[train_idx], dtype=torch.float32).unsqueeze(1),
-                                  torch.tensor(y[train_idx], dtype=torch.float32).unsqueeze(1))
+    train_dataset = TensorDataset(
+        torch.tensor(X_g[train_idx], dtype=torch.float32).unsqueeze(1),
+        torch.tensor(X_l[train_idx], dtype=torch.float32).unsqueeze(1),
+        torch.tensor(y[train_idx], dtype=torch.float32).unsqueeze(1)
+    )
     
-    val_dataset = TensorDataset(torch.tensor(X_g[val_idx], dtype=torch.float32).unsqueeze(1),
-                                torch.tensor(X_l[val_idx], dtype=torch.float32).unsqueeze(1),
-                                torch.tensor(y[val_idx], dtype=torch.float32).unsqueeze(1))
+    val_dataset = TensorDataset(
+        torch.tensor(X_g[val_idx], dtype=torch.float32).unsqueeze(1),
+        torch.tensor(X_l[val_idx], dtype=torch.float32).unsqueeze(1),
+        torch.tensor(y[val_idx], dtype=torch.float32).unsqueeze(1)
+    )
                                 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
-    # --- Model and Optimizer Setup (same as before) ---
+    # Model and Optimizer Setup
     model = st.session_state.model
     criterion = nn.BCELoss()
-    if optimizer_choice == "Adam": optimizer = optim.Adam(model.parameters(), lr=lr)
-    elif optimizer_choice == "SGD": optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
-    else: optimizer = optim.RMSprop(model.parameters(), lr=lr)
+    if optimizer_choice == "Adam": 
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+    elif optimizer_choice == "SGD": 
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    else: 
+        optimizer = optim.RMSprop(model.parameters(), lr=lr)
 
-    # --- UI Placeholders for Live Updates ---
+    # UI Placeholders for Live Updates
     progress_bar = st.progress(0, text="Initializing training...")
     status_text = st.empty()
     chart_placeholder = st.empty()
@@ -480,10 +514,9 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
     history = {'train_loss': [], 'val_loss': [], 'val_accuracy': []}
     best_val_accuracy = 0.0
 
-    # --- Training Loop ---
+    # Training Loop
     for epoch in range(epochs):
         model.train()
-        # ... (Training steps for one epoch are the same) ...
         total_train_loss = 0
         for X_g_b, X_l_b, y_b in train_loader:
             X_g_b, X_l_b, y_b = X_g_b.to(st.session_state.device), X_l_b.to(st.session_state.device), y_b.to(st.session_state.device)
@@ -497,7 +530,6 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
         history['train_loss'].append(avg_train_loss)
 
         model.eval()
-        # ... (Validation steps for one epoch are the same) ...
         total_val_loss, correct, total = 0, 0, 0
         with torch.no_grad():
             for X_g_b, X_l_b, y_b in val_loader:
@@ -517,7 +549,7 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
 
-        # --- **IMPROVEMENT**: Live Update with Interactive Plotly Chart ---
+        # Live Update with Interactive Plotly Chart
         progress_bar.progress((epoch + 1) / epochs, text=f"Epoch {epoch+1}/{epochs}")
         status_text.text(f"Current Val Acc: {val_accuracy:.3f} | Best Val Acc: {best_val_accuracy:.3f}")
         
@@ -527,10 +559,10 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
         fig.update_layout(title="Live Training & Validation Loss", xaxis_title="Epoch", yaxis_title="Loss")
         chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-    # --- **IMPROVEMENT**: Clear live elements and show final summary ---
+    # Clear live elements and show final summary
     progress_bar.empty()
     status_text.empty()
-    chart_placeholder.empty() # Clear the live chart so we can show a final one
+    chart_placeholder.empty()
 
     st.success("Training Complete!")
     st.session_state.training_history.append(history)
@@ -558,12 +590,10 @@ def run_training_loop(X_g, X_l, y, epochs, batch_size, lr, val_split, optimizer_
                 "Optimizer": optimizer_choice
             })
         
-        st.info("💡 **Next Step:** To assess true model performance, use the **'Test Set Evaluation'** tab with data the model has never seen.")
-        model_path = "trained_model.pth"
-        # Save the final state of the model (whether new or fine-tuned)
-        torch.save(st.session_state.model.state_dict(), model_path)
-
-        model_path = f"trained_model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+    st.info("💡 **Next Step:** To assess true model performance, use the **'Test Set Evaluation'** tab with data the model has never seen.")
+    
+    # Save model with timestamp
+    model_path = f"trained_model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
     torch.save(st.session_state.model.state_dict(), model_path)
     st.session_state.downloadable_model_path = model_path
     
@@ -574,7 +604,7 @@ def render_evaluation_tab():
     that indicate how well your model will perform on new exoplanet candidates.
     """)
     
-    if not st.session_state.model:
+    if not st.session_state.model or not st.session_state.model_initialized:
         st.warning("Load a model to evaluate its performance.")
         return
         
@@ -593,15 +623,18 @@ def render_evaluation_tab():
                 st.success("Evaluation Complete!")
                 
                 # Metrics display
-                c1,c2,c3,c4 = st.columns(4)
+                c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Accuracy", f"{results['accuracy']:.3f}")
                 c2.metric("Precision", f"{results['precision']:.3f}")
                 c3.metric("Recall", f"{results['recall']:.3f}")
                 c4.metric("F1-Score", f"{results['f1_score']:.3f}")
                 st.metric("ROC AUC", f"{results['roc_auc']:.3f}")
 
-                # Visualizations
+                # Visualizations - Fixed: Single figure creation
+                st.subheader("Model Performance Visualizations")
                 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Confusion Matrix
                 cm = confusion_matrix(results['y_true'], results['y_pred'])
                 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax1, 
                             xticklabels=['FP', 'Planet'], yticklabels=['FP', 'Planet'])
@@ -609,17 +642,19 @@ def render_evaluation_tab():
                 ax1.set_xlabel('Predicted')
                 ax1.set_ylabel('Actual')
 
+                # ROC Curve
                 fpr, tpr, _ = roc_curve(results['y_true'], results['y_probs'])
-                ax2.plot(fpr, tpr, label=f'AUC = {results["roc_auc"]:.3f}')
-                ax2.plot([0, 1], [0, 1], 'k--')
+                ax2.plot(fpr, tpr, label=f"ROC curve (AUC ={results['roc_auc']:.2f})")
+                ax2.plot([0, 1], [0, 1], 'k--', label='Random Classifier')
                 ax2.set_title('ROC Curve')
                 ax2.set_xlabel('False Positive Rate')
                 ax2.set_ylabel('True Positive Rate')
-                ax2.legend()
-                ax2.grid(True)
+                ax2.legend(loc="lower right")
+                ax2.grid(True, alpha=0.3)
 
                 st.pyplot(fig)
-                
+                plt.close(fig)  # Clean up matplotlib figure
+
                 # Generate downloadable report
                 report = f"""Exoplanet Model Evaluation Report
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -661,12 +696,13 @@ Metrics reflect the model's expected performance on new, unseen data.
                     file_name=f"evaluation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain"
                 )
+
 def display_data_analysis(X_g, y, title):
     """Takes data and labels and displays a full statistical analysis."""
     
     st.subheader(title)
 
-    # --- Display Key Metrics ---
+    # Display Key Metrics
     total_samples = len(y)
     planet_count = np.sum(y)
     fp_count = total_samples - planet_count
@@ -676,14 +712,14 @@ def display_data_analysis(X_g, y, title):
     c2.metric("Planet Candidates", f"{planet_count}")
     c3.metric("False Positives", f"{fp_count}")
 
-    # --- Visualize Class Distribution ---
+    # Visualize Class Distribution
     st.subheader("Class Distribution")
     class_counts = pd.Series(y).map({1: 'Planet', 0: 'False Positive'}).value_counts()
     fig_bar = go.Figure(go.Bar(x=class_counts.index, y=class_counts.values, marker_color=['#0068C9', '#FF4B4B']))
     fig_bar.update_layout(title_text='Number of Samples per Class')
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- Visualize Average Signal Shape ---
+    # Visualize Average Signal Shape
     st.subheader("Average Signal Shape (Global View)")
     avg_planet_signal = X_g[y == 1].mean(axis=0)
     avg_fp_signal = X_g[y == 0].mean(axis=0)
@@ -698,6 +734,7 @@ def display_data_analysis(X_g, y, title):
         legend_title='Signal Type'
     )
     st.plotly_chart(fig_line, use_container_width=True)
+
 def render_data_analysis_tab():
     """
     Renders a tab to visualize dataset statistics.
@@ -714,26 +751,25 @@ def render_data_analysis_tab():
         display_data_analysis(data['X_g'], data['y'], "User-Loaded Dataset Overview")
 
     else:
-        # --- NEW: If no user data, show the default summary image ---
+        # If no user data, show the default summary image
         st.info("No user data loaded yet. Showing a summary of the model's original training dataset.")
         
         try:
-            # IMPORTANT: Change this path to match your image file
             st.image('assets/training_metrics.png', caption="Statistics from the original dataset used to train this model.")
         except FileNotFoundError:
-            st.error("Default statistics image not found. Please ensure 'assets/training_stats.png' exists.")
-        # -----------------------------------------------------------
+            st.error("Default statistics image not found. Please ensure 'assets/training_metrics.png' exists.")
+
 def render_educational_tab():
     """Renders the educational content tab with resources."""
     st.header("How We Discover Exoplanets")
     
-    # --- SECTION 1: THE TRANSIT METHOD ---
+    # SECTION 1: THE TRANSIT METHOD
     st.subheader("The Transit Method: A Cosmic Shadow Play")
     st.markdown("""
     The most successful method for finding exoplanets is the **transit method**. Telescopes like Kepler and TESS stare at thousands of stars, measuring their brightness with incredible precision. When a planet's orbit takes it between its star and our telescope, it blocks a small fraction of the starlight. This creates a tiny, periodic dip in the star's **light curve**—a graph of its brightness over time.
     """)
     
-    # --- NEW VISUAL 1: INTERACTIVE LIGHT CURVE SIMULATOR ---
+    # INTERACTIVE LIGHT CURVE SIMULATOR
     with st.container(border=True):
         st.markdown("#### Interactive Simulator")
         st.write("See how a planet's size changes the light curve. A larger planet blocks more light, creating a deeper dip.")
@@ -759,29 +795,29 @@ def render_educational_tab():
             title="Simulated Light Curve",
             xaxis_title="Time (Phase)",
             yaxis_title="Normalized Brightness",
-            yaxis_range=[max(0.97, 1.0 - transit_depth - 0.005), 1.005] # Dynamic y-axis
+            yaxis_range=[max(0.97, 1.0 - transit_depth - 0.005), 1.005]
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- SECTION 2: THE CHALLENGE ---
+    # SECTION 2: THE CHALLENGE
     st.subheader("The Challenge: Finding a Needle in a Haystack")
     st.markdown("""
     This sounds simple, but the dip in brightness from an Earth-sized planet is minuscule (less than 0.01%) and can be buried in noise. A major challenge is distinguishing a real planet transit from an **astrophysical false positive**, like an eclipsing binary star system, which can create a signal that mimics a planet.
     """)
     
-    # --- NEW VISUAL 2: TRANSIT SHAPE COMPARISON ---
+    # TRANSIT SHAPE COMPARISON
     with st.container(border=True):
         st.markdown("#### Planet Transit vs. False Positive")
         st.write("Models learn to spot subtle differences in the transit's shape. Planets typically create a 'U-shaped' dip, while eclipsing binary stars often create a sharper 'V-shaped' dip.")
 
-        # Generate data for the comparison plot - INDENT THESE LINES
+        # Generate data for the comparison plot
         x_shape = np.linspace(-1, 1, 100)
 
         # U-shape: parabola that looks more like actual transit
-        u_shape = -(1 - x_shape**2) * 0.8  # Smooth, rounded bottom
+        u_shape = -(1 - x_shape**2) * 0.8
 
         # V-shape: Sharp angular dip typical of eclipsing binaries  
-        v_shape = -np.maximum(0, 1 - np.abs(x_shape) * 1.2)  # Linear slopes meeting at point
+        v_shape = -np.maximum(0, 1 - np.abs(x_shape) * 1.2)
 
         # Normalize both to similar depth
         u_shape = u_shape / np.min(u_shape) * -1
@@ -807,7 +843,7 @@ def render_educational_tab():
         )
         st.plotly_chart(fig_compare, use_container_width=True)
     
-    # --- SECTION 3: MACHINE LEARNING APPROACHES ---
+    # SECTION 3: MACHINE LEARNING APPROACHES
     st.header("How Machine Learning Helps")
     st.markdown("Machine learning models can learn these subtle patterns automatically from thousands of examples.")
     st.markdown("""
@@ -885,11 +921,19 @@ def render_educational_tab():
         
         **TESS Mission:**
         - [TESS Candidates](https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config=TOI)
-        - [MAST TESS Data Archive](https://archive.sts""")
+        - [MAST TESS Data Archive](https://archive.stsci.edu/tess/)
+        
+        **Additional Resources:**
+        - [Lightkurve Documentation](https://docs.lightkurve.org/)
+        - [NASA Exoplanet Exploration](https://exoplanets.nasa.gov/)
+        """)
 
-if 'model' not in st.session_state or st.session_state.model is None:
-    
-    # --- WELCOME SCREEN ---
+# ============================================================
+# MAIN APPLICATION LOGIC
+# ============================================================
+
+if not st.session_state.model_initialized:
+    # WELCOME SCREEN
     st.header("Are you ready to discover new worlds?")
     
     # Use columns to center the button
@@ -899,28 +943,27 @@ if 'model' not in st.session_state or st.session_state.model is None:
         if st.button("🚀 Initialize Model & Get Started", type="primary", use_container_width=True):
             with st.spinner("Initializing model..."):
                 st.session_state.model = ExoplanetCNN().to(st.session_state.device)
-            # This forces a rerun of the script. Now st.session_state.model will exist.
+                st.session_state.model_initialized = True
             st.rerun()
 
 else:
     # The sidebar is only rendered once the main app is active
     render_sidebar()
 
-tab_names = ["Classification", "Training", "Dataset Analysis", "Model Evaluation", "Educational"]
-tabs = st.tabs(tab_names)
+    tab_names = ["Classification", "Training", "Dataset Analysis", "Model Evaluation", "Educational"]
+    tabs = st.tabs(tab_names)
 
-with tabs[0]:
-    render_classification_tab()
+    with tabs[0]:
+        render_classification_tab()
 
-with tabs[1]:
-    render_training_tab()
+    with tabs[1]:
+        render_training_tab()
 
-# Create a new section to call the new function
-with tabs[2]:
-    render_data_analysis_tab()
+    with tabs[2]:
+        render_data_analysis_tab()
 
-with tabs[3]:
-    render_evaluation_tab()
-    
-with tabs[4]:
-    render_educational_tab()
+    with tabs[3]:
+        render_evaluation_tab()
+        
+    with tabs[4]:
+        render_educational_tab()
