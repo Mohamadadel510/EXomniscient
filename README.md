@@ -96,7 +96,4 @@ Learn about the transit method, understand how machine learning aids exoplanet d
         - [Lightkurve Documentation](https://docs.lightkurve.org/)
         - [NASA Exoplanet Exploration](https://exoplanets.nasa.gov/)
         -Shallue, C. J., & Vanderburg, A. (2018). Identifying exoplanets with deep learning: A five-planet resonant chain           around Kepler-80 and an eighth planet around Kepler-90. The Astronomical Journal, 155(2), 94. https://doi.org/10.3847/1538-3881/aa9e09
-## Installation
 
-### Prerequisites
-```bash
