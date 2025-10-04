@@ -1,5 +1,4 @@
-# Exoplanet Research Platform 🔭
-
+# Exoplanet Research Platform (EXOmniscient)🔭
 A comprehensive deep learning application for discovering and classifying exoplanets using NASA Kepler and TESS telescope data. This platform leverages Convolutional Neural Networks (CNNs) to distinguish real planetary transits from false positives with high accuracy.
 
 ---
@@ -8,7 +7,7 @@ A comprehensive deep learning application for discovering and classifying exopla
 
 ### 🎯 Real-Time Exoplanet Classification
 
-![Classification Feature](assets/classification_screenshot.png)
+![Classification Feature](ui/assets/Classification_image.png)
 
 Process raw light curve data directly from Kepler/TESS missions or upload preprocessed data for batch classification. The system automatically downloads, preprocesses, and analyzes transit signals to determine planetary probability with detailed confidence metrics.
 
@@ -22,7 +21,7 @@ Process raw light curve data directly from Kepler/TESS missions or upload prepro
 
 ### 🧠 Model Training & Fine-Tuning
 
-![Training Feature](assets/training_screenshot.png)
+![Training Feature](ui/assets/Train_image.png)
 
 Train new models from scratch or fine-tune existing ones with your own labeled datasets. Real-time training visualization with Plotly charts shows loss curves and validation metrics as they evolve.
 
@@ -37,7 +36,7 @@ Train new models from scratch or fine-tune existing ones with your own labeled d
 
 ### 📊 Dataset Analysis & Visualization
 
-![Dataset Analysis Feature](assets/dataset_analysis_screenshot.png)
+![Dataset Analysis Feature](ui/assets/training_metrics.png)
 
 Explore training dataset statistics with dynamic visualizations comparing planetary signals versus false positives. Understand class distribution and average signal morphology.
 
@@ -51,7 +50,7 @@ Explore training dataset statistics with dynamic visualizations comparing planet
 
 ### 🎓 Model Evaluation with Scientific Rigor
 
-![Evaluation Feature](assets/evaluation_screenshot.png)
+![Evaluation Feature](ui\assets\Evaluation _image.png)
 
 Assess model performance on held-out test sets with comprehensive metrics including accuracy, precision, recall, F1-score, and ROC-AUC. Generate confusion matrices and ROC curves for publication-quality analysis.
 
@@ -66,14 +65,17 @@ Assess model performance on held-out test sets with comprehensive metrics includ
 
 ### 📚 Educational Resources & Interactive Learning
 
-![Educational Feature](assets/educational_screenshot.png)
+![Educational Feature](ui/assets/edu_1.png)
 
 Learn about the transit method, understand how machine learning aids exoplanet discovery, and explore the differences between planetary transits and false positives through interactive simulations.
 
 **Key Capabilities:**
 - Interactive light curve simulator
+  ![Educational Feature](ui/assets/edu_1.png)
 - Transit shape comparison (U-shape vs V-shape)
+  ![Educational Feature](ui/assets/edu_2.png)
 - Literature review of ML approaches (CNNs, classical ML, ensemble methods)
+  ![Educational Feature](ui/assets/edu_3.png)
 - Links to NASA datasets and resources
 - Comprehensive explanations of detection methods
 
@@ -92,9 +94,5 @@ Learn about the transit method, understand how machine learning aids exoplanet d
   **Additional Resources:**
         - [Lightkurve Documentation](https://docs.lightkurve.org/)
         - [NASA Exoplanet Exploration](https://exoplanets.nasa.gov/)
-## Installation
+        -Shallue, C. J., & Vanderburg, A. (2018). Identifying exoplanets with deep learning: A five-planet resonant chain           around Kepler-80 and an eighth planet around Kepler-90. The Astronomical Journal, 155(2), 94. https://doi.org/10.3847/1538-3881/aa9e09
 
-### Prerequisites
-```bash
-Python 3.8+
-CUDA-capable GPU (optional, for faster training)
