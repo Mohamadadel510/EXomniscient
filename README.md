@@ -9,7 +9,7 @@ A comprehensive deep learning application for discovering and classifying exopla
 
 ![Classification Feature](ui/assets/Classification_image.png)
 
-Process raw light curve data directly from Kepler/TESS missions or upload preprocessed data for batch classification. The system automatically downloads, preprocesses, and analyzes transit signals to determine planetary probability with detailed confidence metrics.
+Process raw light curve data directly from Kepler/TESS/K2 missions or upload preprocessed data for batch classification. The system automatically downloads, preprocesses, and analyzes transit signals to determine planetary probability with detailed confidence metrics.This Makes Planet never easier!!
 
 **Key Capabilities:**
 - Single target processing with automatic data retrieval
@@ -50,7 +50,7 @@ Explore training dataset statistics with dynamic visualizations comparing planet
 
 ### 🎓 Model Evaluation with Scientific Rigor
 
-![Evaluation Feature](ui\assets\Evaluation _image.png)
+![Evaluation Feature](ui\assets\Evaluation_image.png)
 
 Assess model performance on held-out test sets with comprehensive metrics including accuracy, precision, recall, F1-score, and ROC-AUC. Generate confusion matrices and ROC curves for publication-quality analysis.
 
@@ -75,7 +75,6 @@ Learn about the transit method, understand how machine learning aids exoplanet d
 - Transit shape comparison (U-shape vs V-shape)
   ![Educational Feature](ui/assets/edu_2.png)
 - Literature review of ML approaches (CNNs, classical ML, ensemble methods)
-  ![Educational Feature](ui/assets/edu_3.png)
 - Links to NASA datasets and resources
 - Comprehensive explanations of detection methods
 
